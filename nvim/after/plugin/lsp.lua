@@ -3,9 +3,12 @@ local lsp = require('lsp-zero')
 lsp.preset({})
 
 lsp.on_attach(function(client, bufnr)
-  lsp.default_keymaps({
-    buffer = bufnr,
-  })
+  lsp.default_keymaps({ buffer = bufnr })
+  local opts = { buffer = bufnr }
+  local bind = vim.keymap.set
+  
+  bind('n', '<leader>r', '<cmd>lua vim.lsp.buf.rename()<cr>', opts)
+  bind('n', '<leader>.', '<cmd>lua vim.lsp.buf.code_action()<cr>', opts)
 end)
 
 lsp.ensure_installed({
