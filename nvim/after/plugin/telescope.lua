@@ -5,4 +5,5 @@ vim.keymap.set('n', '<C-p>', builtin.git_files, {})
 vim.keymap.set('n', '<leader>ps', function()
     builtin.grep_string({ search = vim.fn.input("Grep > ") });
 end)
-vim.keymap.set('n', '<C-t>', builtin.treesitter, {})
+vim.keymap.set('n', '<C-s>', builtin.treesitter, {})
+vim.keymap.set('n', '<C-b>', builtin.buffers, {})
