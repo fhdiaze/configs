@@ -1,1 +1,1 @@
-vim.keymap.set('n', '<C-l>', vim.cmd.BLines)
+vim.keymap.set('n', '<leader>l', vim.cmd.BLines)
