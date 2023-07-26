@@ -6,9 +6,10 @@ lsp.on_attach(function(client, bufnr)
   lsp.default_keymaps({ buffer = bufnr })
   local opts = { buffer = bufnr }
   local bind = vim.keymap.set
-  
+
   bind('n', '<leader>r', '<cmd>lua vim.lsp.buf.rename()<cr>', opts)
   bind('n', '<leader>.', '<cmd>lua vim.lsp.buf.code_action()<cr>', opts)
+  bind('n', '<leader>gr', require('telescope.builtin').lsp_references, opts)
 end)
 
 lsp.ensure_installed({
@@ -36,17 +37,17 @@ vim.diagnostic.config({
 lsp.setup()
 
 local cmp = require('cmp')
-local cmp_action = require('lsp-zero').cmp_action()
 
 cmp.setup({
   preselect = 'item',
   completion = {
     autocomplete = false,
-    completeopt = 'menu, menuone, noinsert'
+    completeopt = 'menu,menuone,noinsert'
   },
   sources = {
     {name = 'path'},
     {name = 'nvim_lsp'},
+    {name = 'nvim_lua'},
     {name = 'buffer', keyword_length = 3},
     {name = 'luasnip', keyword_length = 2},
   },
