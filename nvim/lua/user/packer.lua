@@ -41,6 +41,7 @@ return require('packer').startup(function(use)
       {'hrsh7th/cmp-buffer'},
       {'saadparwaiz1/cmp_luasnip'},
       {'rafamadriz/friendly-snippets'},
+      {'hrsh7th/cmp-nvim-lua'}
     }
   }
 
