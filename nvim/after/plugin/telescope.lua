@@ -8,6 +8,7 @@ vim.keymap.set('n', '<leader>sb', builtin.buffers, { desc = 'Search existing [B]
 vim.keymap.set('n', '<leader>sp', builtin.live_grep, { desc = '[S]earch [P]roject' })
 vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
 vim.keymap.set('n', '<leader>sw', require('telescope.builtin').grep_string, { desc = '[S]earch current [W]ord' })
+vim.keymap.set('n', '<leader>ss', builtin.spell_suggest, { desc = '[S]earch [S]pell suggestions'})
 vim.keymap.set('n', '<leader>/', function()
   builtin.current_buffer_fuzzy_find(themes.get_dropdown {
     winblend = 10,
