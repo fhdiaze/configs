@@ -1,5 +1,5 @@
 local lsp = require('lsp-zero')
-
+local builtin = require('telescope.builtin')
 lsp.preset({})
 
 lsp.on_attach(function(client, bufnr)
@@ -9,7 +9,7 @@ lsp.on_attach(function(client, bufnr)
 
   bind('n', '<leader>r', '<cmd>lua vim.lsp.buf.rename()<cr>', opts)
   bind('n', '<leader>.', '<cmd>lua vim.lsp.buf.code_action()<cr>', opts)
-  bind('n', '<leader>gr', require('telescope.builtin').lsp_references, opts)
+  bind('n', '<leader>gr', builtin.lsp_references, opts)
 end)
 
 lsp.ensure_installed({
