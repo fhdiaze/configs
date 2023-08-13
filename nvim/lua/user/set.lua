@@ -20,6 +20,7 @@ vim.opt.scrolloff = 8
 vim.opt.updatetime = 50
 vim.opt.spelllang = "en_gb"
 vim.opt.spell = true;
+--vim.opt.shell = "pwsh"
 
 vim.opt.isfname:append("@-@")
 
