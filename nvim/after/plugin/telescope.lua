@@ -1,11 +1,4 @@
-local telescope = require('telescope')
 local builtin = require('telescope.builtin')
-
-telescope.setup {
-    defaults = {
-        layout_strategy = 'vertical',
-    },
-}
 
 vim.keymap.set('n', '<leader>sg', builtin.git_files, { desc = '[S]earch [G]it files' })
 vim.keymap.set('n', '<leader>st', builtin.treesitter, { desc = '[S]earch [T]ree sitter symbols' })
