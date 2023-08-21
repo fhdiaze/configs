@@ -100,3 +100,5 @@ source $ZSH/oh-my-zsh.sh
 # Example aliases
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
+alias wcode="~/Main/TwoDeg/Code/Services"
+alias pcode="~/Main/Personal/Code"
