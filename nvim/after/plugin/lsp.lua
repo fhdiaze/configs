@@ -19,7 +19,8 @@ lsp.ensure_installed({
   'rust_analyzer',
   'lua_ls',
   'omnisharp',
-  'volar'
+  'volar',
+  'gopls'
 })
 
 -- (Optional) Configure lua language server for neovim
