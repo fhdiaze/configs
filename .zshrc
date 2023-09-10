@@ -4,6 +4,8 @@ export PATH="$HOME/.cargo/bin:$PATH"
 export PATH=$PATH:/usr/local/go/bin
 export wcode="$HOME/Main/TwoDeg/Code/Services"
 export pcode="$HOME/Main/Personal/Code"
+export GOPATH="$HOME/go"
+export PATH="$PATH:$GOPATH/bin"
 
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
