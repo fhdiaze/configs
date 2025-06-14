@@ -1,0 +1,96 @@
+// Zed keymap
+//
+// For information on binding keys, see the Zed
+// documentation: https://zed.dev/docs/key-bindings
+//
+// To see the default key bindings run `zed: open default keymap`
+// from the command palette.
+[
+  {
+    "context": "Workspace",
+    "bindings": {
+      "ctrl-t": "workspace::ToggleBottomDock",
+      "ctrl-b": "workspace::ToggleRightDock",
+      "alt-t": "project_symbols::Toggle"
+    }
+  },
+  {
+    "context": "Terminal",
+    "bindings": {
+      "ctrl-b": "workspace::ToggleRightDock"
+    }
+  },
+  {
+    "context": "Editor",
+    "bindings": {
+      "ctrl-b": "workspace::ToggleRightDock",
+      "ctrl-v": "editor::Paste",
+      "ctrl-j": "workspace::ToggleBottomDock",
+      "alt-z": "editor::ToggleSoftWrap",
+      "ctrl-.": "editor::ToggleCodeActions",
+      "g p": "editor::ShowSignatureHelp",
+      "g a r": "editor::FindAllReferences"
+    }
+  },
+  {
+    "context": "Dock",
+    "bindings": {
+      "ctrl-w h": "workspace::ActivatePaneLeft",
+      "ctrl-w l": "workspace::ActivatePaneRight",
+      "ctrl-w k": "workspace::ActivatePaneUp",
+      "ctrl-w j": "workspace::ActivatePaneDown"
+    }
+  },
+  {
+    "context": "Editor && !menu",
+    "bindings": {
+      "ctrl-c": "editor::Copy", // vim default: return to normal mode
+      "ctrl-x": "editor::Cut", // vim default: decrement
+      "ctrl-y": "editor::Undo", // vim default: line up
+      "ctrl-f": "buffer_search::Deploy", // vim default: page down
+      "ctrl-a": "editor::SelectAll" // vim default: increment
+    }
+  },
+  {
+    "context": "Editor && !menu",
+    "bindings": {
+      "z f": "editor::Fold",
+      "z 1": ["editor::FoldAtLevel", 1],
+      "z 2": ["editor::FoldAtLevel", 2],
+      "z 3": ["editor::FoldAtLevel", 3]
+    }
+  },
+  {
+    "context": "vim_mode == insert && !menu",
+    "bindings": {
+      "ctrl-g": "editor::ShowSignatureHelp"
+    }
+  },
+  {
+    "context": "vim_mode == normal && !menu",
+    "bindings": {
+      "g f": "editor::Format",
+      "g i": "editor::GoToImplementation",
+      "g r": "editor::FindAllReferences",
+      "space r": "editor::Rename"
+    }
+  },
+  {
+    "context": "vim_mode == visual && !menu",
+    "bindings": {
+      "J": "editor::MoveLineDown",
+      "K": "editor::MoveLineUp",
+      "space p": "editor::Paste",
+      "space d": "editor::Delete"
+    }
+  },
+  {
+    "context": "vim_operator == a || vim_operator == i || vim_operator == cs",
+    "bindings": {
+      // Traditional Vim behavior
+      "q": "vim::AnyQuotes",
+      "b": "vim::AnyBrackets",
+      "w": "vim::Word"
+    }
+  }
+]

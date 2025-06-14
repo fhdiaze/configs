@@ -1,0 +1,134 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run the `open default settings` command
+// from the command palette or from `Zed` application menu.
+{
+  "toolbar": {
+    "breadcrumbs": false,
+    "agent_review": false,
+    "quick_actions": false,
+    "selections_menu": false
+  },
+  "enable_language_server": true,
+  "always_treat_brackets_as_autoclosed": true,
+  "auto_update_extensions": {
+    "html": true,
+    "xml": true,
+    "csharp": true
+  },
+  "agent": {
+    "default_profile": "ask",
+    "inline_assistant_model": {
+      "provider": "copilot_chat",
+      "model": "claude-sonnet-4"
+    },
+    "default_model": {
+      "provider": "copilot_chat",
+      "model": "claude-sonnet-4"
+    },
+    "version": "2"
+  },
+  "base_keymap": "VSCode",
+  "theme": "Ayu Mirage",
+  "vim_mode": true,
+  "ui_font_size": 16,
+  "buffer_font_size": 16,
+  "cursor_shape": "block",
+  "cursor_blink": true,
+  "restore_on_startup": "none",
+  "project_panel": {
+    "dock": "right"
+  },
+  "outline_panel": {
+    // Whether to show the outline panel button in the status bar
+    "button": true,
+    // Default width of the outline panel.
+    "default_width": 300,
+    // Where to dock the outline panel. Can be 'left' or 'right'.
+    "dock": "right"
+  },
+  "hover_popover_enabled": false,
+  "collaboration_panel": {
+    // Whether to show the collaboration panel button in the status bar.
+    "button": false,
+    // Where to dock the collaboration panel. Can be 'left' or 'right'.
+    "dock": "right",
+    // Default width of the collaboration panel.
+    "default_width": 240
+  },
+  "inlay_hints": {
+    "enabled": false,
+    "show_type_hints": false,
+    "show_value_hints": false
+  },
+  "completions": {
+    "words": "fallback",
+    "lsp": true,
+    "lsp_insert_mode": "replace"
+  },
+  "show_completion_documentation": true,
+  "show_completions_on_input": false,
+  "hour_format": "hour24",
+  "show_whitespaces": "all",
+  "chat_panel": {
+    // Whether to show the chat panel button in the status bar.
+    "button": "never",
+    // Where to the chat panel. Can be 'left' or 'right'.
+    "dock": "right",
+    // Default width of the chat panel.
+    "default_width": 240
+  },
+  "format_on_save": "off",
+  "auto_update": false,
+  "show_edit_predictions": false,
+  "git": {
+    // Control whether the git gutter is shown. May take 2 values:
+    // 1. Show the gutter
+    //      "git_gutter": "tracked_files"
+    // 2. Hide the gutter
+    //      "git_gutter": "hide"
+    "git_gutter": "hide",
+    // Control whether the git blame information is shown inline,
+    // in the currently focused line.
+    "inline_blame": {
+      "enabled": false
+      // Sets a delay after which the inline blame information is shown.
+      // Delay is restarted with every cursor movement.
+      // "delay_ms": 600
+    }
+  },
+  "git_panel": {
+    "button": false,
+    "dock": null
+  },
+  "vim": {
+    "toggle_relative_line_numbers": true,
+    "use_system_clipboard": "always",
+    "use_multiline_find": false,
+    "use_smartcase_find": false,
+    "cursor_shape": {
+      "insert": "hollow",
+      "normal": "block"
+    }
+  },
+  "search": {
+    // Whether to show the project search button in the status bar.
+    "button": false,
+    "whole_word": false,
+    "case_sensitive": false,
+    "include_ignored": false,
+    "regex": false
+  },
+  "lsp": {
+    "omnisharp": {
+      "binary": {
+        "path": "C:\\Users\\Fredy.Diaz\\AppData\\Local\\Zed\\languages\\omnisharp-v1.39.13\\OmniSharp.exe",
+        "arguments": ["-lsp"]
+      }
+    }
+  }
+}
