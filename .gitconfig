@@ -1,0 +1,10 @@
+# This is Git's per-user configuration file.
+[user]
+name = Fredy Diaz
+email = fhdiaz87@gmail.com
+
+[credential]
+helper = manager
+
+[alias]
+gone = "!f() { git fetch --all --prune; git branch -vv | awk '/: gone]/{print $1}' | xargs git branch -D; }; f"
