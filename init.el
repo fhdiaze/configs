@@ -64,6 +64,10 @@
 
 (setq xterm-set-window-title t)
 
+(menu-bar-mode -1)
+(when (fboundp 'tool-bar-mode)   (tool-bar-mode -1))
+(when (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
+
 ;; ---------------------------------------------------------------------------
 ;; 4. Completion and search
 ;; ---------------------------------------------------------------------------
@@ -168,6 +172,27 @@
 (defun my/dotnet-build () (interactive) (my/dotnet "build"))
 (defun my/dotnet-test () (interactive) (my/dotnet "test"))
 
+(use-package eglot
+  :ensure nil
+  :commands (eglot eglot-ensure eglot-rename eglot-format-buffer
+             eglot-code-actions eglot-find-implementation
+             eglot-find-typeDefinition)
+  :hook ((csharp-ts-mode . eglot-ensure)
+         (c-mode         . eglot-ensure)
+         (c-ts-mode      . eglot-ensure)
+         (c++-mode       . eglot-ensure)
+         (c++-ts-mode    . eglot-ensure))
+  :config
+  (add-to-list 'eglot-server-programs
+               '((csharp-mode csharp-ts-mode) . ("csharp-ls")))
+  (setq eglot-autoshutdown t))
+
+
+(kbd "g /") #'consult-ripgrep                            ; search text in project
+
+(kbd "g *") (lambda () (interactive)                     ; search word under cursor
+              (consult-ripgrep nil (thing-at-point 'symbol)))
+
 ;; ---------------------------------------------------------------------------
 ;; 6. Keybindings
 ;; ---------------------------------------------------------------------------
@@ -191,10 +216,14 @@
     (kbd "g f") #'eglot-format-buffer
     (kbd "g q") #'eglot-code-actions
     (kbd "g s") #'consult-imenu
-    (kbd "g p") #'eldoc
     (kbd "K")   #'eldoc-doc-buffer
     (kbd "] d") #'flymake-goto-next-error
-    (kbd "[ d") #'flymake-goto-prev-error))
+    (kbd "[ d") #'flymake-goto-prev-error
+    (kbd "M-t") #'consult-eglot-symbols
+    (kbd "g /") #'consult-ripgrep         ; search text in project
+    (kbd "g *") (lambda () (interactive)  ; search word under cursor
+                  (consult-ripgrep nil (thing-at-point 'symbol)))
+    (kbd "g p") #'eldoc)
 
 ;; Half-page cursor movement instead of window scrolling
 (defun my/half-page-down ()
@@ -207,6 +236,8 @@
 
 (with-eval-after-load 'evil
   (evil-define-key '(normal visual) 'global
+    (kbd "<leader>d") #'my/delete-no-yank
+    (kbd "<leader>x") #'my/delete-char-no-yank
     (kbd "C-d") #'my/half-page-down
     (kbd "C-u") #'my/half-page-up))
 
@@ -216,6 +247,34 @@
       scroll-margin 3)
 
 (global-set-key (kbd "C-c t") #'my/toggle-terminal)
+
+;; Leader key: Space (change to "\\" if your VS Code leader is backslash)
+(evil-set-leader '(normal visual) (kbd "SPC"))
+
+;; Delete without touching the clipboard (black hole register)
+(evil-define-operator my/delete-no-yank (beg end type)
+  "Delete text without saving it to the clipboard."
+  (interactive "<R>")
+  (evil-delete beg end type ?_))
+
+
+(evil-define-operator my/delete-char-no-yank (beg end type)
+  "Delete character without saving it to the clipboard."
+  :motion evil-forward-char
+  (interactive "<R>")
+  (evil-delete beg end type ?_))
+
+;; Paste over a selection without replacing the clipboard (only <leader>p)
+(defun my/paste-no-yank ()
+  "Replace the selection with the clipboard, keeping the clipboard."
+  (interactive)
+  (let ((evil-kill-on-visual-paste nil))
+    (call-interactively #'evil-visual-paste)))
+
+(evil-define-key 'visual 'global
+  (kbd "J") (concat ":m '>+1" (kbd "RET") "gv=gv")
+  (kbd "K") (concat ":m '<-2" (kbd "RET") "gv=gv")
+  (kbd "<leader>p") #'my/paste-no-yank)
 
 ;; ---------------------------------------------------------------------------
 ;; 7. Customize-managed settings (written by Emacs; avoid hand-editing)
