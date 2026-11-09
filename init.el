@@ -19,6 +19,9 @@
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (package-initialize)
 
+(add-to-list 'exec-path (expand-file-name "~/.dotnet/tools"))
+(setenv "PATH" (concat (getenv "PATH") ":" (expand-file-name "~/.dotnet/tools")))
+
 ;; ---------------------------------------------------------------------------
 ;; 2. Evil (Vim keys)
 ;; ---------------------------------------------------------------------------
@@ -147,7 +150,7 @@
 
   ;; Normal mode: code navigation (same keys as your VS Code Vim setup)
   (evil-define-key 'normal 'global
-    (kbd "g d") #'evil-goto-definition
+    (kbd "g d") #'xref-find-definitions
     (kbd "g r") #'xref-find-references
     (kbd "g i") #'eglot-find-implementation
     (kbd "g y") #'eglot-find-typeDefinition
