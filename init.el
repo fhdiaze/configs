@@ -57,6 +57,13 @@
     (list (list (car event)
                 (replace-regexp-in-string "\r\n?" "\n" (nth 1 event))))))
 
+(setq frame-title-format
+      '((:eval (file-name-nondirectory
+                (directory-file-name default-directory)))
+        " - %b"))
+
+(setq xterm-set-window-title t)
+
 ;; ---------------------------------------------------------------------------
 ;; 4. Completion and search
 ;; ---------------------------------------------------------------------------
@@ -95,6 +102,33 @@
   (define-key corfu-map (kbd "C-p") #'corfu-previous)
   (define-key corfu-map (kbd "TAB") #'corfu-insert)
   (define-key corfu-map [tab] #'corfu-insert))
+
+;; Integrated terminal, like VS Code's panel
+(use-package eat
+  :ensure t
+  :config
+  ;; Let the shell get your keys (Esc, Ctrl-r, arrows) instead of Evil
+  (evil-set-initial-state 'eat-mode 'emacs))
+
+;; Show the terminal at the bottom, 30% of the window
+(add-to-list 'display-buffer-alist
+             '("\\*.*eat\\*"
+               (display-buffer-in-side-window)
+               (side . bottom)
+               (window-height . 0.3)))
+
+(defun my/toggle-terminal ()
+  "Show or hide a terminal for the current project."
+  (interactive)
+  (let ((win (seq-find (lambda (w)
+                         (with-current-buffer (window-buffer w)
+                           (derived-mode-p 'eat-mode)))
+                       (window-list))))
+    (if win
+        (delete-window win)
+      (if (project-current)
+          (eat-project)
+        (eat)))))
 
 ;; ---------------------------------------------------------------------------
 ;; 5. C#
@@ -161,6 +195,27 @@
     (kbd "K")   #'eldoc-doc-buffer
     (kbd "] d") #'flymake-goto-next-error
     (kbd "[ d") #'flymake-goto-prev-error))
+
+;; Half-page cursor movement instead of window scrolling
+(defun my/half-page-down ()
+  (interactive)
+  (evil-next-line (/ (window-body-height) 2)))
+
+(defun my/half-page-up ()
+  (interactive)
+  (evil-previous-line (/ (window-body-height) 2)))
+
+(with-eval-after-load 'evil
+  (evil-define-key '(normal visual) 'global
+    (kbd "C-d") #'my/half-page-down
+    (kbd "C-u") #'my/half-page-up))
+
+;; Scroll one line at a time when the cursor leaves the screen,
+;; instead of recentering it
+(setq scroll-conservatively 101
+      scroll-margin 3)
+
+(global-set-key (kbd "C-c t") #'my/toggle-terminal)
 
 ;; ---------------------------------------------------------------------------
 ;; 7. Customize-managed settings (written by Emacs; avoid hand-editing)
