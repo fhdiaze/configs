@@ -405,6 +405,17 @@
                    (error nil)))
       (indent-region beg end))))
 
+;; Diagnostics: show or hide the list of problems in the current file
+(defun my/toggle-diagnostics ()
+  "Show or hide the list of problems in the current file."
+  (interactive)
+  (if-let* ((win (seq-find (lambda (w)
+                             (with-current-buffer (window-buffer w)
+                               (derived-mode-p 'flymake-diagnostics-buffer-mode)))
+                           (window-list))))
+      (quit-window nil win)
+    (flymake-show-buffer-diagnostics)))
+
 ;; Search results: reopen the most recent g / results (deadgrep or xref)
 (defun my/show-search-results ()
   "Show the last search results again."
@@ -450,6 +461,7 @@
     (kbd "g .") #'my/show-search-results   ; reopen last search results
     (kbd "g p") #'eldoc
     (kbd "K")   #'eldoc-doc-buffer
+    (kbd "g e") #'my/toggle-diagnostics    ; show/hide problems in this file
     (kbd "] d") #'flymake-goto-next-error
     (kbd "[ d") #'flymake-goto-prev-error)
 

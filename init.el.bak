@@ -76,6 +76,24 @@
         evil-visual-state-cursor 'box
         evil-insert-state-cursor 'hollow))
 
+;; Mode line (bottom bar): Vim state, modified dot, file name, line/column,
+;; git branch, language, language server and diagnostics. Hides line endings,
+;; scroll position and the list of minor modes.
+(setq evil-mode-line-format nil)        ; we place the <N>/<I> tag ourselves
+(setq-default mode-line-format
+              '("%e"
+                mode-line-front-space
+                (:eval evil-mode-line-tag)
+                (:eval (if (buffer-modified-p) " \u25CF " "   ")) ; ● when unsaved
+                mode-line-buffer-identification
+                "  Ln %l, Col %C  "
+                (vc-mode vc-mode)
+                "  "
+                mode-name
+                "  "
+                mode-line-misc-info     ; [eglot:project] and E/W/I counts
+                mode-line-end-spaces))
+
 ;; Hide menu bar, tool bar and scroll bars
 (menu-bar-mode -1)
 (when (fboundp 'tool-bar-mode)   (tool-bar-mode -1))
@@ -432,6 +450,7 @@
     (kbd "g .") #'my/show-search-results   ; reopen last search results
     (kbd "g p") #'eldoc
     (kbd "K")   #'eldoc-doc-buffer
+    (kbd "g e") #'flymake-show-buffer-diagnostics ; list problems in this file
     (kbd "] d") #'flymake-goto-next-error
     (kbd "[ d") #'flymake-goto-prev-error)
 
