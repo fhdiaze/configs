@@ -6,7 +6,7 @@
 ;;   2. Evil (Vim keys)
 ;;   3. Look and feel (theme, clipboard, title, bars, scrolling)
 ;;   4. Completion and search (vertico, orderless, consult, corfu)
-;;   5. Terminal (eat)
+;;   5. Terminal (eat on Linux/WSL, eshell on Windows)
 ;;   6. Languages (tree-sitter, eglot, C#, C/C++, dotnet helpers)
 ;;   7. Custom commands
 ;;   8. Keybindings
@@ -21,9 +21,30 @@
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (package-initialize)
 
+;; Platform check, used below for Windows-only and Linux-only settings
+(defconst my/windows-p (eq system-type 'windows-nt)
+  "Non-nil when running native Windows Emacs.")
+
 ;; Make dotnet global tools (csharp-ls) findable
-(add-to-list 'exec-path (expand-file-name "~/.dotnet/tools"))
-(setenv "PATH" (concat (getenv "PATH") ":" (expand-file-name "~/.dotnet/tools")))
+(let ((tools (expand-file-name ".dotnet/tools"
+                               (or (and my/windows-p (getenv "USERPROFILE"))
+                                   "~"))))
+  (when (file-directory-p tools)
+    (add-to-list 'exec-path tools)
+    (setenv "PATH" (concat (getenv "PATH") path-separator tools))))
+
+;; Windows: use the Unix tools that ship with Git for Windows (xargs, find,
+;; grep), which project search (g /) and project.el need
+(when my/windows-p
+  (let ((git-usr-bin "C:/Program Files/Git/usr/bin"))
+    (when (file-directory-p git-usr-bin)
+      (add-to-list 'exec-path git-usr-bin)
+      (setenv "PATH" (concat git-usr-bin path-separator (getenv "PATH"))))))
+
+;; Faster communication with language servers (eglot), most noticeable on Windows
+(setq read-process-output-max (* 1024 1024))
+(when my/windows-p
+  (setq w32-pipe-read-delay 0))
 
 ;; ---------------------------------------------------------------------------
 ;; 2. Evil (Vim keys)
@@ -66,7 +87,7 @@
       (setq my/title-project-name
             (file-name-nondirectory
              (directory-file-name
-              (if-let ((proj (project-current)))
+              (if-let* ((proj (project-current)))
                   (project-root proj)
                 default-directory))))))
 
@@ -75,25 +96,47 @@
         " - %b"))
 (setq xterm-set-window-title t)
 
+;; Line numbers (absolute) in code and text files
+(setq-default display-line-numbers-type t)
+(add-hook 'prog-mode-hook #'display-line-numbers-mode)
+(add-hook 'text-mode-hook #'display-line-numbers-mode)
+
+;; Show whitespace like VS Code: dots for spaces, arrows for tabs
+(setq whitespace-style '(face spaces tabs space-mark tab-mark))
+(setq whitespace-display-mappings
+      '((space-mark ?\s [?\u00B7] [?.])       ; space -> middle dot
+        (tab-mark   ?\t [?\u2192 ?\t] [?> ?\t]))) ; tab -> arrow
+(with-eval-after-load 'whitespace
+  ;; Subtle grey marks, no background highlight
+  (set-face-attribute 'whitespace-space nil
+                      :background 'unspecified :inherit 'shadow)
+  (set-face-attribute 'whitespace-tab nil
+                      :background 'unspecified :inherit 'shadow))
+(add-hook 'prog-mode-hook #'whitespace-mode)
+(add-hook 'text-mode-hook #'whitespace-mode)
+
 ;; Scroll one line at a time when the cursor leaves the screen,
 ;; instead of recentering it
 (setq scroll-conservatively 101
       scroll-margin 3)
 
-;; Clipboard shared with Windows
-(use-package clipetty
-  :ensure t
-  :hook (after-init . global-clipetty-mode))
+;; Terminal Emacs (WSL) only: native Windows Emacs uses the clipboard directly
+(unless my/windows-p
+  ;; Clipboard shared with Windows
+  (use-package clipetty
+    :ensure t
+    :hook (after-init . global-clipetty-mode))
 
-;; Pasting from Windows: turn CRLF / CR into plain newlines
-(define-advice xterm-paste (:filter-args (args) my/normalize-newlines)
-  (let ((event (car args)))
-    (list (list (car event)
-                (replace-regexp-in-string "\r\n?" "\n" (nth 1 event))))))
+  ;; Pasting from Windows: turn CRLF / CR into plain newlines
+  (define-advice xterm-paste (:filter-args (args) my/normalize-newlines)
+    (let ((event (car args)))
+      (list (list (car event)
+                  (replace-regexp-in-string "\r\n?" "\n" (nth 1 event)))))))
 
 ;; ---------------------------------------------------------------------------
 ;; 4. Completion and search
-;; Text search (g /, g *) needs ripgrep: sudo pacman -S ripgrep
+;; Text search (g /, g *) needs ripgrep: sudo pacman -S ripgrep (Arch)
+;;   or winget install BurntSushi.ripgrep.MSVC (Windows)
 ;; ---------------------------------------------------------------------------
 (use-package vertico
   :ensure t
@@ -109,9 +152,13 @@
 (use-package consult
   :ensure t)
 
+;; Remember recently opened files and folders (M-x consult-recent-file)
+(recentf-mode 1)
+
 ;; Project text search (g /) uses ripgrep; results stay in the *xref* buffer.
 ;; From your code, M-g n / M-g p go to the next / previous match.
-(setq xref-search-program 'ripgrep)
+(when (executable-find "rg")
+  (setq xref-search-program 'ripgrep))
 
 ;; Project-wide symbol search through eglot (M-t)
 (use-package consult-eglot
@@ -132,38 +179,46 @@
   (define-key corfu-map [tab] #'corfu-insert))
 
 ;; ---------------------------------------------------------------------------
-;; 5. Terminal (eat), like VS Code's integrated terminal
+;; 5. Terminal, like VS Code's integrated terminal
+;; Linux/WSL: eat (full terminal). Windows: eshell (eat needs a Unix terminal).
 ;; ---------------------------------------------------------------------------
-(use-package eat
-  :ensure t
-  :config
-  ;; Let the shell get your keys (Esc, Ctrl-r, arrows) instead of Evil
-  (evil-set-initial-state 'eat-mode 'emacs))
+(unless my/windows-p
+  (use-package eat
+    :ensure t
+    :config
+    ;; Let the shell get your keys (Esc, Ctrl-r, arrows) instead of Evil
+    (evil-set-initial-state 'eat-mode 'emacs)))
 
 ;; Show the terminal at the bottom, 30% of the window
 (add-to-list 'display-buffer-alist
-             '("\\*.*eat\\*"
+             '("\\*.*\\(eat\\|eshell\\)\\*"
                (display-buffer-in-side-window)
                (side . bottom)
                (window-height . 0.3)))
 
 ;; ---------------------------------------------------------------------------
 ;; 6. Languages
-;; C# needs: dotnet-sdk, csharp-ls, and the c-sharp tree-sitter grammar.
-;;   Install the grammar once with: M-x treesit-install-language-grammar RET c-sharp
+;; C# needs: dotnet-sdk and csharp-ls. The c-sharp tree-sitter grammar is
+;;   optional: install it with M-x treesit-install-language-grammar RET c-sharp
+;;   (needs a C compiler; on Windows that means MSYS2 gcc). Without it, the
+;;   built-in csharp-mode is used instead, and eglot still works.
 ;; C/C++ needs: clang (for clangd) and ideally a compile_commands.json.
 ;; ---------------------------------------------------------------------------
 (setq treesit-language-source-alist
       '((c-sharp "https://github.com/tree-sitter/tree-sitter-c-sharp")))
 
-(add-to-list 'auto-mode-alist '("\\.cs\\'" . csharp-ts-mode))
+;; Use the tree-sitter mode when the grammar is installed, else csharp-mode
+(when (and (fboundp 'treesit-language-available-p)
+           (treesit-language-available-p 'c-sharp))
+  (add-to-list 'auto-mode-alist '("\\.cs\\'" . csharp-ts-mode)))
 
 (use-package eglot
   :ensure nil
   :commands (eglot eglot-ensure eglot-rename eglot-format-buffer
              eglot-code-actions eglot-find-implementation
              eglot-find-typeDefinition)
-  :hook ((csharp-ts-mode . eglot-ensure)
+  :hook ((csharp-mode    . eglot-ensure)
+         (csharp-ts-mode . eglot-ensure)
          (c-mode         . eglot-ensure)
          (c-ts-mode      . eglot-ensure)
          (c++-mode       . eglot-ensure)
@@ -176,6 +231,8 @@
 ;; C#: 4-space indent, like VS Code
 (add-hook 'csharp-ts-mode-hook
           (lambda () (setq-local tab-width 4 csharp-ts-mode-indent-offset 4)))
+(add-hook 'csharp-mode-hook
+          (lambda () (setq-local tab-width 4 c-basic-offset 4)))
 
 ;; ---------------------------------------------------------------------------
 ;; 7. Custom commands
@@ -189,19 +246,18 @@
       (call-interactively #'project-find-file)
     (call-interactively #'find-file)))
 
-;; Terminal
+;; Terminal: eat on Linux/WSL, eshell on Windows
 (defun my/toggle-terminal ()
   "Show or hide a terminal for the current project."
   (interactive)
   (let ((win (seq-find (lambda (w)
                          (with-current-buffer (window-buffer w)
-                           (derived-mode-p 'eat-mode)))
+                           (derived-mode-p 'eat-mode 'eshell-mode)))
                        (window-list))))
-    (if win
-        (delete-window win)
-      (if (project-current)
-          (eat-project)
-        (eat)))))
+    (cond (win (delete-window win))
+          (my/windows-p (if (project-current) (project-eshell) (eshell)))
+          ((project-current) (eat-project))
+          (t (eat)))))
 
 ;; dotnet: build and test from the folder that holds the .sln
 (defun my/dotnet (command)
@@ -250,7 +306,7 @@
 (defun my/show-search-results ()
   "Show the last search results again."
   (interactive)
-  (if-let ((buf (get-buffer "*xref*")))
+  (if-let* ((buf (get-buffer "*xref*")))
       (pop-to-buffer buf)
     (message "No search results yet")))
 
