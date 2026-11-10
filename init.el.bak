@@ -6,7 +6,7 @@
 ;;   2. Evil (Vim keys)
 ;;   3. Look and feel (theme, clipboard, title, bars, scrolling)
 ;;   4. Completion and search (vertico, orderless, consult, corfu)
-;;   5. Terminal (eat on Linux/WSL, eshell on Windows)
+;;   5. Terminal (eat on Linux/WSL, PowerShell on Windows)
 ;;   6. Languages (tree-sitter, eglot, C#, C/C++, dotnet helpers)
 ;;   7. Custom commands
 ;;   8. Keybindings
@@ -32,14 +32,6 @@
   (when (file-directory-p tools)
     (add-to-list 'exec-path tools)
     (setenv "PATH" (concat (getenv "PATH") path-separator tools))))
-
-;; Windows: use the Unix tools that ship with Git for Windows (xargs, find,
-;; grep), which project search (g /) and project.el need
-(when my/windows-p
-  (let ((git-usr-bin "C:/Program Files/Git/usr/bin"))
-    (when (file-directory-p git-usr-bin)
-      (add-to-list 'exec-path git-usr-bin)
-      (setenv "PATH" (concat git-usr-bin path-separator (getenv "PATH"))))))
 
 ;; Faster communication with language servers (eglot), most noticeable on Windows
 (setq read-process-output-max (* 1024 1024))
@@ -70,6 +62,19 @@
 ;; 3. Look and feel
 ;; ---------------------------------------------------------------------------
 (load-theme 'modus-vivendi-deuteranopia t)
+
+;; Font (graphical Emacs only; in WSL the terminal sets the font)
+(when (and (display-graphic-p)
+           (member "Cascadia Mono" (font-family-list)))
+  (set-face-attribute 'default nil :family "Cascadia Mono" :height 120))
+
+;; Cursor (graphical Emacs only): solid box normally, hollow box in insert
+;; mode, no blinking. In WSL the terminal draws the cursor instead.
+(when (display-graphic-p)
+  (blink-cursor-mode -1)
+  (setq evil-normal-state-cursor 'box
+        evil-visual-state-cursor 'box
+        evil-insert-state-cursor 'hollow))
 
 ;; Hide menu bar, tool bar and scroll bars
 (menu-bar-mode -1)
@@ -155,8 +160,13 @@
 ;; Remember recently opened files and folders (M-x consult-recent-file)
 (recentf-mode 1)
 
-;; Project text search (g /) uses ripgrep; results stay in the *xref* buffer.
-;; From your code, M-g n / M-g p go to the next / previous match.
+;; Project text search (g /): deadgrep runs ripgrep directly (fast, also on
+;; Windows) and keeps the results in their own buffer. RET opens a match.
+(use-package deadgrep
+  :ensure t
+  :commands deadgrep)
+
+;; Other xref-based searches use ripgrep too when it's installed
 (when (executable-find "rg")
   (setq xref-search-program 'ripgrep))
 
@@ -180,7 +190,7 @@
 
 ;; ---------------------------------------------------------------------------
 ;; 5. Terminal, like VS Code's integrated terminal
-;; Linux/WSL: eat (full terminal). Windows: eshell (eat needs a Unix terminal).
+;; Linux/WSL: eat (full terminal). Windows: PowerShell (eat needs a Unix terminal).
 ;; ---------------------------------------------------------------------------
 (unless my/windows-p
   (use-package eat
@@ -191,7 +201,7 @@
 
 ;; Show the terminal at the bottom, 30% of the window
 (add-to-list 'display-buffer-alist
-             '("\\*.*\\(eat\\|eshell\\)\\*"
+             '("\\*.*\\(eat\\|powershell\\).*\\*"
                (display-buffer-in-side-window)
                (side . bottom)
                (window-height . 0.3)))
@@ -204,6 +214,22 @@
 ;;   built-in csharp-mode is used instead, and eglot still works.
 ;; C/C++ needs: clang (for clangd) and ideally a compile_commands.json.
 ;; ---------------------------------------------------------------------------
+;; EditorConfig: follow each project's .editorconfig (indent size, tabs vs
+;; spaces, line endings, final newline, trailing whitespace). Built into
+;; Emacs 30+; installed from the package archives on older versions.
+(use-package editorconfig
+  :ensure t
+  :config
+  (editorconfig-mode 1))
+
+;; Guess indentation from the file itself (tabs vs spaces, indent size) when a
+;; project has no .editorconfig. An .editorconfig, when present, still wins.
+(use-package dtrt-indent
+  :ensure t
+  :config
+  (setq dtrt-indent-verbosity 0)        ; don't announce what it detected
+  (dtrt-indent-global-mode 1))
+
 (setq treesit-language-source-alist
       '((c-sharp "https://github.com/tree-sitter/tree-sitter-c-sharp")))
 
@@ -226,13 +252,40 @@
   :config
   (add-to-list 'eglot-server-programs
                '((csharp-mode csharp-ts-mode) . ("csharp-ls")))
-  (setq eglot-autoshutdown t))
+  (setq eglot-autoshutdown t)
+  ;; Don't log every message to/from the language server (big speed-up)
+  (if (boundp 'eglot-events-buffer-config)
+      (setq eglot-events-buffer-config '(:size 0 :format full))
+    (setq eglot-events-buffer-size 0)))
 
 ;; C#: 4-space indent, like VS Code
 (add-hook 'csharp-ts-mode-hook
           (lambda () (setq-local tab-width 4 csharp-ts-mode-indent-offset 4)))
 (add-hook 'csharp-mode-hook
           (lambda () (setq-local tab-width 4 c-basic-offset 4)))
+
+;; Diagnostics in the mode line (bottom bar): E:errors W:warnings I:info,
+;; for any buffer with flymake on (eglot turns it on for C#, C, C++).
+(defun my/flymake-mode-line ()
+  "Error, warning and info counts for the current buffer."
+  (when (bound-and-true-p flymake-mode)
+    (let ((e 0) (w 0) (i 0))
+      (dolist (d (flymake-diagnostics))
+        (pcase (flymake-diagnostic-type d)
+          ((or :error 'eglot-error)     (setq e (1+ e)))
+          ((or :warning 'eglot-warning) (setq w (1+ w)))
+          (_                            (setq i (1+ i)))))
+      (concat " "
+              (propertize (format "E:%d" e) 'face (if (> e 0) 'error 'shadow))
+              " "
+              (propertize (format "W:%d" w) 'face (if (> w 0) 'warning 'shadow))
+              " "
+              (propertize (format "I:%d" i) 'face (if (> i 0) 'success 'shadow))
+              " "))))
+
+(add-to-list 'global-mode-string '(:eval (my/flymake-mode-line)))
+(with-eval-after-load 'flymake
+  (setq flymake-mode-line-format nil))  ; hide the default "Flymake[...]" text
 
 ;; ---------------------------------------------------------------------------
 ;; 7. Custom commands
@@ -246,16 +299,32 @@
       (call-interactively #'project-find-file)
     (call-interactively #'find-file)))
 
-;; Terminal: eat on Linux/WSL, eshell on Windows
+;; Terminal: eat on Linux/WSL, PowerShell on Windows
+(defun my/powershell ()
+  "Open (or show) PowerShell in the project root, or the current folder."
+  (require 'shell)
+  (let* ((proj (project-current))
+         (root (if proj (project-root proj) default-directory))
+         (name (format "*powershell: %s*"
+                       (file-name-nondirectory (directory-file-name root))))
+         (buf (get-buffer-create name))
+         (prog (or (executable-find "pwsh") "powershell")))  ; PowerShell 7 if installed
+    (unless (comint-check-proc buf)
+      (with-current-buffer buf
+        (setq default-directory root)
+        (shell-mode)
+        (make-comint-in-buffer "powershell" buf prog nil "-NoLogo")))
+    (pop-to-buffer buf)))
+
 (defun my/toggle-terminal ()
   "Show or hide a terminal for the current project."
   (interactive)
   (let ((win (seq-find (lambda (w)
                          (with-current-buffer (window-buffer w)
-                           (derived-mode-p 'eat-mode 'eshell-mode)))
+                           (derived-mode-p 'eat-mode 'shell-mode)))
                        (window-list))))
     (cond (win (delete-window win))
-          (my/windows-p (if (project-current) (project-eshell) (eshell)))
+          (my/windows-p (my/powershell))
           ((project-current) (eat-project))
           (t (eat)))))
 
@@ -302,11 +371,30 @@
   (let ((evil-kill-on-visual-paste nil))
     (call-interactively #'evil-visual-paste)))
 
-;; Search results: reopen the last g / results (the *xref* buffer)
+;; Formatting: language server when available, else Emacs's own indentation.
+;; Formats the selection in visual mode, otherwise the whole buffer.
+(defun my/format ()
+  "Format the selection or buffer with the language server, or re-indent it."
+  (interactive)
+  (let* ((region (use-region-p))
+         (beg (if region (region-beginning) (point-min)))
+         (end (if region (region-end) (point-max))))
+    (unless (and (fboundp 'eglot-managed-p)
+                 (eglot-managed-p)
+                 (condition-case nil
+                     (progn (if region (eglot-format beg end) (eglot-format-buffer))
+                            t)
+                   (error nil)))
+      (indent-region beg end))))
+
+;; Search results: reopen the most recent g / results (deadgrep or xref)
 (defun my/show-search-results ()
   "Show the last search results again."
   (interactive)
-  (if-let* ((buf (get-buffer "*xref*")))
+  (if-let* ((buf (seq-find (lambda (b)
+                             (with-current-buffer b
+                               (derived-mode-p 'deadgrep-mode 'xref--xref-buffer-mode)))
+                           (buffer-list))))
       (pop-to-buffer buf)
     (message "No search results yet")))
 
@@ -314,6 +402,7 @@
 ;; 8. Keybindings
 ;; ---------------------------------------------------------------------------
 (global-set-key (kbd "C-c t") #'my/toggle-terminal)
+(global-set-key (kbd "C-M-r") #'consult-recent-file)   ; recent files and folders
 
 (with-eval-after-load 'evil
   ;; Leader key: Space
@@ -333,11 +422,11 @@
     (kbd "g r") #'xref-find-references
     (kbd "g i") #'eglot-find-implementation
     (kbd "g y") #'eglot-find-typeDefinition
-    (kbd "g f") #'eglot-format-buffer
+    (kbd "g f") #'my/format                ; format buffer (LSP, else re-indent)
     (kbd "g q") #'eglot-code-actions
     (kbd "g s") #'consult-imenu            ; symbols in this file
     (kbd "M-t") #'consult-eglot-symbols    ; symbols in the project
-    (kbd "g /") #'project-find-regexp      ; search text in project (results stay open)
+    (kbd "g /") #'deadgrep                 ; search text in project (results stay open)
     (kbd "g *") (lambda () (interactive)   ; search word under cursor
                   (consult-ripgrep nil (thing-at-point 'symbol)))
     (kbd "g .") #'my/show-search-results   ; reopen last search results
@@ -360,6 +449,7 @@
 
   ;; Visual mode: move selected lines, paste without replacing the clipboard
   (evil-define-key 'visual 'global
+    (kbd "g f")       #'my/format          ; format selection
     (kbd "J")         (concat ":m '>+1" (kbd "RET") "gv=gv")
     (kbd "K")         (concat ":m '<-2" (kbd "RET") "gv=gv")
     (kbd "<leader>p") #'my/paste-no-yank))
