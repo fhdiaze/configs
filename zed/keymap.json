@@ -330,12 +330,6 @@
     }
   },
   {
-    "context": "vim_mode == insert",
-    "unbind": {
-      "ctrl-s": "editor::ShowSignatureHelp"
-    }
-  },
-  {
     "context": "(vim_mode == insert || vim_mode == normal) && showing_signature_help && !showing_completions",
     "unbind": {
       "ctrl-n": "editor::SignatureHelpNext"
@@ -357,6 +351,60 @@
     "context": "Editor",
     "unbind": {
       "ctrl-i": "editor::ShowSignatureHelp"
+    }
+  },
+  {
+    "context": "Editor && showing_signature_help && !showing_completions",
+    "bindings": {
+      "ctrl-p": "editor::SignatureHelpPrevious"
+    }
+  },
+  {
+    "context": "(vim_mode == insert || vim_mode == normal) && showing_signature_help && !showing_completions",
+    "unbind": {
+      "ctrl-p": "editor::SignatureHelpPrevious"
+    }
+  },
+  {
+    "context": "VimControl && !menu",
+    "unbind": {
+      "ctrl-g": "vim::ShowLocation"
+    }
+  },
+  {
+    "context": "ThreadsSidebar",
+    "unbind": {
+      "ctrl-g": "agents_sidebar::ToggleThreadHistory"
+    }
+  },
+  {
+    "context": "Editor && mode == full",
+    "unbind": {
+      "ctrl-g": "go_to_line::Toggle"
+    }
+  },
+  {
+    "context": "vim_mode == literal",
+    "unbind": {
+      "ctrl-g": [
+        "vim::Literal",
+        [
+          "ctrl-g",
+          "\u0007"
+        ]
+      ]
+    }
+  },
+  {
+    "context": "vim_mode == insert",
+    "bindings": {
+      "ctrl-g": "editor::ShowSignatureHelp"
+    }
+  },
+  {
+    "context": "vim_mode == insert",
+    "unbind": {
+      "ctrl-s": "editor::ShowSignatureHelp"
     }
   }
 ]
