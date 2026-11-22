@@ -58,6 +58,13 @@
   :config
   (evil-collection-init))
 
+;; Treat _ as part of a word, like Vim: w, b, e, ciw, * see line_offset as one
+;; word instead of two.
+(defun my/underscore-is-word ()
+  (modify-syntax-entry ?_ "w"))
+(add-hook 'prog-mode-hook #'my/underscore-is-word)
+(add-hook 'text-mode-hook #'my/underscore-is-word)
+
 ;; ---------------------------------------------------------------------------
 ;; 3. Look and feel
 ;; ---------------------------------------------------------------------------
@@ -271,6 +278,9 @@
   (add-to-list 'eglot-server-programs
                '((csharp-mode csharp-ts-mode) . ("csharp-ls")))
   (setq eglot-autoshutdown t)
+  ;; No inlay hints (grey "ghost" text such as [0]= in array initialisers or
+  ;; parameter names). Delete this line to get them back.
+  (add-to-list 'eglot-ignored-server-capabilities :inlayHintProvider)
   ;; Don't log every message to/from the language server (big speed-up)
   (if (boundp 'eglot-events-buffer-config)
       (setq eglot-events-buffer-config '(:size 0 :format full))
@@ -281,6 +291,63 @@
           (lambda () (setq-local tab-width 4 csharp-ts-mode-indent-offset 4)))
 (add-hook 'csharp-mode-hook
           (lambda () (setq-local tab-width 4 c-basic-offset 4)))
+
+;; Debugging with dape (Debug Adapter Protocol, like VS Code's debugger).
+;; C/C++: uses CodeLLDB from VS Code if installed (see below), otherwise
+;; lldb-dap (included with LLVM on Windows, `lldb` package on Arch).
+;; Compile with debug info, e.g. clang -g -O0 app.c -o app
+;; Keys: C-x C-a, then d start, b breakpoint, n next, s step in, o step out,
+;; c continue, q quit. With repeat-mode, keep pressing n/s/o/c without the prefix.
+;; CodeLLDB from VS Code's extensions (the debugger behind "type": "lldb" in
+;; launch.json). It bundles its own LLDB and Python, so it works on Windows
+;; without extra setup. The newest installed version is used.
+(defun my/codelldb-path ()
+  "Path to the newest CodeLLDB adapter installed in VS Code, or nil."
+  (let ((version (lambda (path)
+                   (if (string-match "vscode-lldb-\\([0-9.]+\\)" path)
+                       (match-string 1 path)
+                     "0"))))
+    (car (last (sort (file-expand-wildcards
+                      (expand-file-name
+                       (concat ".vscode/extensions/vadimcn.vscode-lldb-*/adapter/codelldb"
+                               (if my/windows-p ".exe" ""))
+                       (or (and my/windows-p (getenv "USERPROFILE")) "~")))
+                     (lambda (a b)
+                       (version< (funcall version a) (funcall version b))))))))
+
+(use-package dape
+  :ensure t
+  :config
+  (setq dape-buffer-window-arrangement 'right) ; info panels on the right
+  (dape-breakpoint-global-mode 1)              ; remember breakpoints per file
+  ;; Debug setup "codelldb-vscode": pick it at the dape prompt, or name it in a
+  ;; project's .dir-locals.el (see the tix project for an example)
+  (when-let* ((codelldb (my/codelldb-path)))
+    (add-to-list 'dape-configs
+                 `(codelldb-vscode
+                   modes (c-mode c-ts-mode c++-mode c++-ts-mode)
+                   command ,codelldb
+                   ;; Fixed port: dape's automatic port picking returns 0 on
+                   ;; Windows ("Unable to connect ... localhost:0")
+                   command-args ("--port" "47110")
+                   command-cwd dape-command-cwd
+                   port 47110
+                   :type "lldb"
+                   :request "launch"
+                   :cwd "."
+                   :program "a.out"
+                   :args []
+                   :stopOnEntry nil))))
+(repeat-mode 1)
+
+;; Code info (signature, docs, problem under the cursor) only on demand: the
+;; bottom line stays quiet while moving around; g p / M-p shows it there.
+;; K still opens the full docs, which keep updating in the background.
+(defun my/eldoc-echo-on-demand (docs interactive)
+  "Show DOCS in the echo area only when asked for with `eldoc' (g p, M-p)."
+  (when interactive
+    (eldoc-display-in-echo-area docs interactive)))
+(setq eldoc-display-functions '(my/eldoc-echo-on-demand eldoc-display-in-buffer))
 
 ;; Diagnostics in the mode line (bottom bar): E:errors W:warnings I:info,
 ;; for any buffer with flymake on (eglot turns it on for C#, C, C++).
@@ -405,6 +472,46 @@
                    (error nil)))
       (indent-region beg end))))
 
+;; Diagnostics: show or hide the list of problems in the current file
+(defun my/toggle-diagnostics ()
+  "Show or hide the list of problems in the current file."
+  (interactive)
+  (if-let* ((win (seq-find (lambda (w)
+                             (with-current-buffer (window-buffer w)
+                               (derived-mode-p 'flymake-diagnostics-buffer-mode)))
+                           (window-list))))
+      (quit-window nil win)
+    (flymake-show-buffer-diagnostics)))
+
+;; Highlight on demand: every occurrence of the word under the cursor, or of
+;; the selection in visual mode. Run again on the same text to remove it.
+;; Each new highlight gets the next colour.
+(defun my/toggle-highlight ()
+  "Toggle highlighting the symbol at point, or the visual selection."
+  (interactive)
+  (require 'hi-lock)
+  (let ((regexp (if (use-region-p)
+                    (regexp-quote (buffer-substring-no-properties
+                                   (region-beginning) (region-end)))
+                  (when-let* ((sym (thing-at-point 'symbol t)))
+                    (concat "\\_<" (regexp-quote sym) "\\_>")))))
+    (when (and (fboundp 'evil-visual-state-p) (evil-visual-state-p))
+      (evil-exit-visual-state))
+    (cond ((null regexp) (message "Nothing to highlight here"))
+          ((assoc regexp hi-lock-interactive-patterns)
+           (unhighlight-regexp regexp))
+          (t (highlight-regexp
+              regexp
+              (intern (nth (mod (length hi-lock-interactive-patterns)
+                                (length hi-lock-face-defaults))
+                           hi-lock-face-defaults)))))))
+
+(defun my/clear-highlights ()
+  "Remove all highlights made with `my/toggle-highlight'."
+  (interactive)
+  (when (bound-and-true-p hi-lock-interactive-patterns)
+    (unhighlight-regexp t)))
+
 ;; Search results: reopen the most recent g / results (deadgrep or xref)
 (defun my/show-search-results ()
   "Show the last search results again."
@@ -419,8 +526,19 @@
 ;; ---------------------------------------------------------------------------
 ;; 8. Keybindings
 ;; ---------------------------------------------------------------------------
+;; Help while learning: after a prefix key (C-x, C-x p, g, SPC ...) pause and a
+;; popup lists what you can press next. Built into Emacs 30+.
+(use-package which-key
+  :ensure t
+  :config
+  (which-key-mode 1))
+
+;; Undo / redo window layout changes: C-c <left> / C-c <right>
+(winner-mode 1)
+
 (global-set-key (kbd "C-c t") #'my/toggle-terminal)
 (global-set-key (kbd "C-M-r") #'consult-recent-file)   ; recent files and folders
+(global-set-key (kbd "M-z") #'visual-line-mode)        ; toggle word wrap
 
 (with-eval-after-load 'evil
   ;; Leader key: Space
@@ -450,7 +568,7 @@
     (kbd "g .") #'my/show-search-results   ; reopen last search results
     (kbd "g p") #'eldoc
     (kbd "K")   #'eldoc-doc-buffer
-    (kbd "g e") #'flymake-show-buffer-diagnostics ; list problems in this file
+    (kbd "g e") #'my/toggle-diagnostics    ; show/hide problems in this file
     (kbd "] d") #'flymake-goto-next-error
     (kbd "[ d") #'flymake-goto-prev-error)
 
@@ -459,7 +577,9 @@
     (kbd "C-d")       #'my/half-page-down
     (kbd "C-u")       #'my/half-page-up
     (kbd "<leader>d") #'my/delete-no-yank
-    (kbd "<leader>x") #'my/delete-char-no-yank)
+    (kbd "<leader>x") #'my/delete-char-no-yank
+    (kbd "<leader>h") #'my/toggle-highlight  ; highlight word / selection
+    (kbd "<leader>H") #'my/clear-highlights) ; clear all highlights
 
   ;; Insert mode: Ctrl-Space completion, M-p parameter hints
   (evil-define-key 'insert 'global
